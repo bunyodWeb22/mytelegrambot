@@ -24,6 +24,7 @@ ADMIN_ID = 6466373319
 
 # Foydalanuvchilarni saqlash uchun fayl
 USERS_FILE = "users.json"
+
 # Faol duellar bazasi
 ACTIVE_DUELS = {}
 
@@ -99,7 +100,7 @@ logging.basicConfig(
 
 def get_main_keyboard(user_id=None):
     keyboard = [
-        [KeyboardButton("📚 Mashq boshlash"), KeyboardButton("🎲 Tasodifiy so'z")],
+        [KeyboardButton("📚 Mashq boshlash")],
         [KeyboardButton("⚔️ Do'st bilan Duel"), KeyboardButton("📊 Natijalarim")],
         [KeyboardButton("🔥 Qiyin so'zlarim"), KeyboardButton("🔄 Takrorlash")]
     ]
@@ -630,7 +631,6 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await ask_audio_question(update, context)
 
     elif text.startswith("🔄 Barcha unitlarni takrorlash"):
-        # Qaysi oraliqligini aniqlab olish (masalan: 1-28, 29-56 va hokazo)
         try:
             parts = text.replace("🔄 Barcha unitlarni takrorlash (", "").replace(")", "").split("-")
             start_u = int(parts[0])
@@ -640,7 +640,6 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             for u in range(start_u, end_u + 1):
                 u_words = UNITS.get(u, [])
                 if u_words:
-                    # Har bir unitdan 20 tadan so'z tanlab olish (agar unitda 20 tadan kam bo'lsa hammasini oladi)
                     taken = random.sample(u_words, min(20, len(u_words)))
                     selected_words.extend(taken)
             
@@ -688,23 +687,6 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['is_audio_mode'] = False
 
         await update.message.reply_text(f"🔄 <b>10 ta unitdan aralash takrorlash</b> boshlandi!\nJami savollar: <b>{len(selected_words)} ta</b>", parse_mode="HTML")
-        return await ask_question(update, context)
-
-    elif text == "🎲 Tasodifiy so'z":
-        all_words = [w for unit in UNITS.values() for w in unit if 'word' in w]
-        if not all_words:
-            await update.message.reply_text("⚠️ Bazada so'zlar topilmadi.")
-            return CHOOSE_UNIT
-        
-        selected_words = random.sample(all_words, min(15, len(all_words)))
-        context.user_data['remaining_words'] = selected_words
-        context.user_data['unit'] = "Aralash"
-        context.user_data['total_questions'] = len(selected_words)
-        context.user_data['correct_answers'] = 0
-        context.user_data['has_practiced'] = True
-        context.user_data['is_audio_mode'] = False
-
-        await update.message.reply_text(f"🎲 <b>Tasodifiy so'zlar testi</b> boshlandi!\nJami savollar: <b>{len(selected_words)} ta</b>", parse_mode="HTML")
         return await ask_question(update, context)
 
     elif text == "🔙 Asosiy menyu":
@@ -803,7 +785,6 @@ def main():
             CommandHandler("start", start),
             CommandHandler("admin", admin_stats),
             CommandHandler("practice", handle_menu),
-            CommandHandler("random", handle_menu),
             CommandHandler("mystats", handle_menu),
             CommandHandler("battle", handle_menu),
             CommandHandler("review", handle_menu),
@@ -814,7 +795,6 @@ def main():
             CHOOSE_UNIT: [
                 CommandHandler("start", start),
                 CommandHandler("admin", admin_stats),
-                CommandHandler("random", handle_menu),
                 CommandHandler("review", handle_menu),
                 CommandHandler("qiyin", handle_menu),
                 CallbackQueryHandler(handle_friend_battle_callback, pattern="^fbtl_"),

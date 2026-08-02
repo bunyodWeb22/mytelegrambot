@@ -2,8 +2,14 @@
     "6466373319": {
         "name": "𝓑𝓾𝓷𝔂𝓸𝓭",
         "username": "bunyodmvp",
-        "score": 30,
-        "hard_words": []
+        "score": 60,
+        "hard_words": [
+            {
+                "word": "Agree",
+                "trans": "Rozi bolmoq, qoshilmoq",
+                "ex": "A: The food is delicious. B: I agree."
+            }
+        ]
     },
     "8568181904": {
         "name": "𝓢𝓮𝓿𝓲𝓷𝓬𝓱🪽",
