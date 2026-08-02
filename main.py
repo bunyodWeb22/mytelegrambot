@@ -776,7 +776,7 @@ async def check_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await ask_question(update, context)
 
 def main():
-    TOKENN = os.getenv("8949503703:AAENtkeltrgdyq3a-NC2qsg12TxMPZrqVB4") # Bot tokeningizni yozing
+    TOKENN = "8949503703:AAENtkeltrgdyq3a-NC2qsg12TxMPZrqVB4" # Bot tokeningizni yozing
 
     if not TOKENN:
         print("Xatolik: TOKEN topilmadi!")
