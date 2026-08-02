@@ -36,7 +36,7 @@ def load_users():
             return {}
     return {}
 
-def save_user_data(user, score=None, add_hard_word=None):
+def save_user_data(user, score=None, add_hard_word=None, completed_unit=None):
     users = load_users()
     user_id = str(user.id)
     
@@ -45,7 +45,8 @@ def save_user_data(user, score=None, add_hard_word=None):
             "name": user.first_name,
             "username": user.username if user.username else "Yo'q",
             "score": 0,
-            "hard_words": []
+            "hard_words": [],
+            "completed_units": []
         }
     
     users[user_id]["name"] = user.first_name
@@ -60,6 +61,12 @@ def save_user_data(user, score=None, add_hard_word=None):
         if not any(w['word'] == add_hard_word['word'] for w in users[user_id]["hard_words"]):
             users[user_id]["hard_words"].append(add_hard_word)
 
+    if completed_unit:
+        if "completed_units" not in users[user_id]:
+            users[user_id]["completed_units"] = []
+        if completed_unit not in users[user_id]["completed_units"]:
+            users[user_id]["completed_units"].append(completed_unit)
+
     with open(USERS_FILE, "w", encoding="utf-8") as f:
         json.dump(users, f, ensure_ascii=False, indent=4)
 
@@ -70,6 +77,18 @@ def remove_hard_word(user_id, word_text):
         users[u_id]["hard_words"] = [w for w in users[u_id]["hard_words"] if w['word'] != word_text]
         with open(USERS_FILE, "w", encoding="utf-8") as f:
             json.dump(users, f, ensure_ascii=False, indent=4)
+
+def get_user_rank(score):
+    if score >= 3500:
+        return "👑 Legend"
+    elif score >= 2000:
+        return "🎓 Master"
+    elif score >= 1000:
+        return "💻 Expert"
+    elif score >= 500:
+        return "📖 Student"
+    else:
+        return "🐣 Beginner"
 
 CHOOSE_UNIT, QUIZ = range(2)
 
@@ -88,10 +107,21 @@ def get_main_keyboard(user_id=None):
         keyboard.insert(2, [KeyboardButton("🏆 Reyting")])
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
-def get_unit_keyboard():
+# Asosiy Essential kitoblar menyusi (1 dan 6 gacha)
+def get_essentials_keyboard():
+    keyboard = [
+        [KeyboardButton("📖 Essential 1"), KeyboardButton("📖 Essential 2")],
+        [KeyboardButton("📖 Essential 3"), KeyboardButton("📖 Essential 4")],
+        [KeyboardButton("📖 Essential 5"), KeyboardButton("📖 Essential 6")],
+        [KeyboardButton("🎧 Ovozli Test"), KeyboardButton("🔙 Asosiy menyu")]
+    ]
+    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
+# Har bir Essential uchun unitlar va takrorlash tugmalarini hosil qiluvchi yordamchi funksiya
+def get_essential_units_keyboard(start_unit, end_unit):
     keyboard = []
     row = []
-    for i in range(1, 29):
+    for i in range(start_unit, end_unit + 1):
         row.append(KeyboardButton(f"Unit {i}"))
         if len(row) == 4:
             keyboard.append(row)
@@ -99,11 +129,18 @@ def get_unit_keyboard():
     if row:
         keyboard.append(row)
     
-    keyboard.append([KeyboardButton("🎧 Ovozli Test"), KeyboardButton("🔄 5 ta Unit (100 ta so'z)")])
-    keyboard.append([KeyboardButton("🔄 10 ta Unit (200 ta so'z)"), KeyboardButton("🔙 Asosiy menyu")])
+    keyboard.append([KeyboardButton(f"🔄 Barcha unitlarni takrorlash ({start_unit}-{end_unit})")])
+    keyboard.append([KeyboardButton("🔄 5 ta Unit (100 ta so'z)"), KeyboardButton("🔄 10 ta Unit (200 ta so'z)")])
+    keyboard.append([KeyboardButton("🔙 Orqaga (Kitoblar)"), KeyboardButton("🔙 Asosiy menyu")])
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
-def get_user_data(context: ContextTypes.DEFAULT_TYPE):
+def get_user_data(context: ContextTypes.DEFAULT_TYPE, user_id=None):
+    if user_id:
+        users = load_users()
+        u_id = str(user_id)
+        if u_id in users and 'score' in users[u_id]:
+            context.user_data['score'] = users[u_id]['score']
+            
     if 'score' not in context.user_data:
         context.user_data['score'] = 0
     if 'total_solved' not in context.user_data:
@@ -117,7 +154,6 @@ async def setup_bot_commands(app):
     commands = [
         BotCommand("start", "🚀 Botni qayta ishga tushirish"),
         BotCommand("practice", "📚 So'z yodlash"),
-        BotCommand("random", "🎲 Tasodifiy so'zlar testi"),
         BotCommand("review", "🔄 Xato so'zlarni takrorlash"),
         BotCommand("qiyin", "🔥 Qiyin so'zlarim"),
         BotCommand("battle", "⚔️ Do'st bilan duel"),
@@ -129,7 +165,7 @@ async def setup_bot_commands(app):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     save_user_data(user)
-    get_user_data(context)
+    get_user_data(context, user.id)
 
     if context.args and context.args[0].startswith("duel_"):
         duel_id = context.args[0].replace("duel_", "")
@@ -156,12 +192,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     total_units = len(UNITS)
     total_words = sum(len(words) for words in UNITS.values())
     score = context.user_data['score']
+    user_rank = get_user_rank(score)
 
     text = (
         f"👋 Salom, <b>{html.escape(user.first_name)}</b>!\n\n"
         f"🎓 <b>Essential English Lug'at Boti</b>\n"
         f"━━━━━━━━━━━━━━━━━━━━━━\n"
         f"📚 {total_units} ta unit | {total_words} ta so'z\n"
+        f"🎖 Unvoningiz: <b>{user_rank}</b>\n"
         f"💰 Achkongiz: <b>{score}</b>\n"
         f"━━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"/practice — 📚 so'z yodlash\n"
@@ -193,11 +231,12 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, parse_mode="HTML")
 
 async def mystats(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    get_user_data(context)
+    get_user_data(context, update.effective_user.id)
     total = context.user_data['total_solved']
     correct = context.user_data['total_correct']
     score = context.user_data['score']
     percent = round((correct / total * 100)) if total > 0 else 0
+    user_rank = get_user_rank(score)
 
     users = load_users()
     u_id = str(update.effective_user.id)
@@ -205,6 +244,7 @@ async def mystats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(
         f"📊 <b>Mening Natijalarim:</b>\n\n"
+        f"🎖 Unvoningiz: <b>{user_rank}</b>\n"
         f"💰 Achkolar: <b>{score}</b>\n"
         f"❓ Jami yechilgan: <b>{total} ta</b>\n"
         f"✅ To'g'ri topilgan: <b>{correct} ta</b>\n"
@@ -212,8 +252,6 @@ async def mystats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"🔥 Qiyin so'zlar: <b>{hard_words_count} ta</b>",
         parse_mode="HTML"
     )
-
-# --- DO'ST BILAN BATTLE (DUEL) MANTIQI ---
 
 async def start_friend_battle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -377,15 +415,32 @@ async def ask_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
         correct_count = context.user_data.get('correct_answers', 0)
         percentage = round((correct_count / total * 100)) if total > 0 else 0
 
+        user_id = update.effective_user.id
+        users = load_users()
+        completed_units = users.get(str(user_id), {}).get("completed_units", [])
+        
+        if unit_num not in completed_units and unit_num != "Qiyin so'zlar":
+            save_user_data(update.effective_user, completed_unit=unit_num)
+            context.user_data['is_unit_rewarded'] = True
+        else:
+            context.user_data['is_unit_rewarded'] = False
+
         retry_keyboard = [
             [KeyboardButton(f"Unit {unit_num}")] if isinstance(unit_num, int) else [KeyboardButton("🔥 Qiyin so'zlarim")],
-            [KeyboardButton("🔙 Asosiy menyu")]
+            [KeyboardButton("📖 Essential 1"), KeyboardButton("🔙 Asosiy menyu")]
         ]
+
+        reward_text = ""
+        if context.user_data.get('is_unit_rewarded', False):
+            reward_text = "\n🎁 <i>Unitni birinchi marta tugatganingiz uchun ballar qo'shildi! Keyingi takrorlashlarda bu unitdan ball berilmaydi.</i>"
+        else:
+            reward_text = "\n⚠️ <i>Bu unitni oldin ham ishlagansiz, shuning uchun bu safar faqat mashq uchun (ball berilmadi).</i>"
 
         await update.message.reply_text(
             f"🎉 <b>Test yakunlandi!</b>\n\n"
             f"✅ To'g'ri javoblar: <b>{correct_count} / {total}</b>\n"
-            f"📈 Aniqlik: <b>{percentage}%</b>",
+            f"📈 Aniqlik: <b>{percentage}%</b>"
+            f"{reward_text}",
             parse_mode="HTML",
             reply_markup=ReplyKeyboardMarkup(retry_keyboard, resize_keyboard=True)
         )
@@ -433,7 +488,7 @@ async def ask_audio_question(update: Update, context: ContextTypes.DEFAULT_TYPE)
             f"✅ To'g'ri javoblar: <b>{correct_count} / {total}</b>\n"
             f"📈 Aniqlik: <b>{percentage}%</b>",
             parse_mode="HTML",
-            reply_markup=get_unit_keyboard()
+            reply_markup=get_essentials_keyboard()
         )
         return CHOOSE_UNIT
 
@@ -450,7 +505,6 @@ async def ask_audio_question(update: Update, context: ContextTypes.DEFAULT_TYPE)
         voice_file = io.BytesIO()
         tts.write_to_fp(voice_file)
         voice_file.seek(0)
-        # Ovoz ostida tarjimasi ham chiqadigan qilindi
         await update.message.reply_voice(
             voice=voice_file, 
             caption=f"📝 Tarjimasi: <b>{trans_text}</b>", 
@@ -486,11 +540,39 @@ async def ask_audio_question(update: Update, context: ContextTypes.DEFAULT_TYPE)
 async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     user = update.effective_user
-    get_user_data(context)
+    get_user_data(context, user.id)
     save_user_data(user)
 
     if text in ["📚 Mashq boshlash", "/practice"]:
-        await update.message.reply_text("Qaysi Unit bo'yicha mashq qilamiz? Tanlang:", reply_markup=get_unit_keyboard())
+        await update.message.reply_text("Kerakli kitobni tanlang:", reply_markup=get_essentials_keyboard())
+        return CHOOSE_UNIT
+
+    elif text == "📖 Essential 1":
+        await update.message.reply_text("<b>Essential 1</b> bo'limi:\nUnitni yoki takrorlashni tanlang:", parse_mode="HTML", reply_markup=get_essential_units_keyboard(1, 28))
+        return CHOOSE_UNIT
+
+    elif text == "📖 Essential 2":
+        await update.message.reply_text("<b>Essential 2</b> bo'limi:\nUnitni yoki takrorlashni tanlang:", parse_mode="HTML", reply_markup=get_essential_units_keyboard(29, 56))
+        return CHOOSE_UNIT
+
+    elif text == "📖 Essential 3":
+        await update.message.reply_text("<b>Essential 3</b> bo'limi:\nUnitni yoki takrorlashni tanlang:", parse_mode="HTML", reply_markup=get_essential_units_keyboard(57, 84))
+        return CHOOSE_UNIT
+
+    elif text == "📖 Essential 4":
+        await update.message.reply_text("<b>Essential 4</b> bo'limi:\nUnitni yoki takrorlashni tanlang:", parse_mode="HTML", reply_markup=get_essential_units_keyboard(85, 112))
+        return CHOOSE_UNIT
+
+    elif text == "📖 Essential 5":
+        await update.message.reply_text("<b>Essential 5</b> bo'limi:\nUnitni yoki takrorlashni tanlang:", parse_mode="HTML", reply_markup=get_essential_units_keyboard(113, 140))
+        return CHOOSE_UNIT
+
+    elif text == "📖 Essential 6":
+        await update.message.reply_text("<b>Essential 6</b> bo'limi:\nUnitni yoki takrorlashni tanlang:", parse_mode="HTML", reply_markup=get_essential_units_keyboard(141, 168))
+        return CHOOSE_UNIT
+
+    elif text == "🔙 Orqaga (Kitoblar)":
+        await update.message.reply_text("Kerakli kitobni tanlang:", reply_markup=get_essentials_keyboard())
         return CHOOSE_UNIT
 
     elif text in ["📊 Natijalarim", "/mystats"]:
@@ -547,6 +629,39 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("🎧 <b>Ovozli test boshlandi!</b> Bot ovoz yuboradi va tagida tarjimasi ko'rsatiladi.", parse_mode="HTML")
         return await ask_audio_question(update, context)
 
+    elif text.startswith("🔄 Barcha unitlarni takrorlash"):
+        # Qaysi oraliqligini aniqlab olish (masalan: 1-28, 29-56 va hokazo)
+        try:
+            parts = text.replace("🔄 Barcha unitlarni takrorlash (", "").replace(")", "").split("-")
+            start_u = int(parts[0])
+            end_u = int(parts[1])
+            
+            selected_words = []
+            for u in range(start_u, end_u + 1):
+                u_words = UNITS.get(u, [])
+                if u_words:
+                    # Har bir unitdan 20 tadan so'z tanlab olish (agar unitda 20 tadan kam bo'lsa hammasini oladi)
+                    taken = random.sample(u_words, min(20, len(u_words)))
+                    selected_words.extend(taken)
+            
+            random.shuffle(selected_words)
+            
+            if not selected_words:
+                await update.message.reply_text("⚠️ Bu oraliqdagi unitlar uchun so'zlar topilmadi.")
+                return CHOOSE_UNIT
+
+            context.user_data['remaining_words'] = selected_words
+            context.user_data['unit'] = f"Barcha unitlar ({start_u}-{end_u})"
+            context.user_data['total_questions'] = len(selected_words)
+            context.user_data['correct_answers'] = 0
+            context.user_data['has_practiced'] = True
+            context.user_data['is_audio_mode'] = False
+
+            await update.message.reply_text(f"🔄 <b>Barcha unitlardan takrorlash</b> boshlandi!\nHar bir unitdan 20 tadan so'z olindi. Jami savollar: <b>{len(selected_words)} ta</b>", parse_mode="HTML")
+            return await ask_question(update, context)
+        except Exception:
+            pass
+
     elif text == "🔄 5 ta Unit (100 ta so'z)":
         all_words = [w for unit in UNITS.values() for w in unit if 'word' in w]
         selected_words = random.sample(all_words, min(100, len(all_words)))
@@ -601,7 +716,7 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             words = UNITS.get(unit_num, [])
 
             if not words:
-                await update.message.reply_text(f"⚠️ Unit {unit_num} da so'zlar hali yo'q.")
+                await update.message.reply_text(f"⚠️ <b>Unit {unit_num}</b> bo'yicha so'zlar hali bazaga qo'shilmagan!", parse_mode="HTML")
                 return CHOOSE_UNIT
 
             context.user_data['remaining_words'] = list(words)
@@ -623,10 +738,11 @@ async def check_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_answer = update.message.text
     current_item = context.user_data.get('current_item', {})
     correct_answer = current_item.get('word', '')
-    get_user_data(context)
+    user = update.effective_user
+    get_user_data(context, user.id)
 
     if user_answer == "🛑 Testni to'xtatish":
-        await update.message.reply_text("Test to'xtatildi.", reply_markup=get_main_keyboard(update.effective_user.id))
+        await update.message.reply_text("Test to'xtatildi.", reply_markup=get_main_keyboard(user.id))
         return CHOOSE_UNIT
 
     if user_answer in ["🗣 Talaffuz qilish", "🗣 Qayta eshitish"]:
@@ -648,19 +764,29 @@ async def check_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     context.user_data['total_solved'] += 1
 
+    users = load_users()
+    u_id = str(user.id)
+    completed_units = users.get(u_id, {}).get("completed_units", [])
+    current_unit = context.user_data.get('unit')
+
+    is_rewardable = (current_unit == "Qiyin so'zlar") or (current_unit not in completed_units)
+
     if user_answer == correct_answer:
         context.user_data['correct_answers'] += 1
         context.user_data['total_correct'] += 1
-        context.user_data['score'] += 10
-        save_user_data(update.effective_user, score=context.user_data['score'])
         
-        if context.user_data.get('unit') == "Qiyin so'zlar":
-            remove_hard_word(update.effective_user.id, correct_answer)
-
-        await update.message.reply_text("✅ <b>To'g'ri!</b> (+10 achko 💰)", parse_mode="HTML")
+        if is_rewardable:
+            context.user_data['score'] += 10
+            save_user_data(user, score=context.user_data['score'])
+            await update.message.reply_text("✅ <b>To'g'ri!</b> (+10 achko 💰)", parse_mode="HTML")
+        else:
+            await update.message.reply_text("✅ <b>To'g'ri!</b> (Bu unit oldindan yechilgani uchun achko berilmadi)", parse_mode="HTML")
+        
+        if current_unit == "Qiyin so'zlar":
+            remove_hard_word(user.id, correct_answer)
     else:
-        save_user_data(update.effective_user, score=context.user_data['score'], add_hard_word=current_item)
-        await update.message.reply_text(f"❌ <b>Noto'g'ri!</b> To'g'ri javob: <b>{html.escape(str(correct_answer))}</b>", parse_mode="HTML")
+        save_user_data(user, score=context.user_data['score'], add_hard_word=current_item)
+        await update.message.reply_text(f"❌ <b>Noto'g'ri!</b> To'g'ri javob: <b>{html.escape(str(correct_answer))}</b>\n🔥 <i>Bu so'z Qiyin so'zlar ro'yxatiga qo'shildi!</i>", parse_mode="HTML")
 
     if context.user_data.get('is_audio_mode', False):
         return await ask_audio_question(update, context)

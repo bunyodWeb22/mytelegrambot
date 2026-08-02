@@ -8,7 +8,70 @@
     "8568181904": {
         "name": "𝓢𝓮𝓿𝓲𝓷𝓬𝓱🪽",
         "username": "bakhramjanovas_ss",
+        "score": 800,
+        "hard_words": [
+            {
+                "word": "Several",
+                "trans": "Bir nechta",
+                "ex": "There are several choices."
+            },
+            {
+                "word": "Universe",
+                "trans": "Koinot",
+                "ex": "The universe is vast."
+            },
+            {
+                "word": "Avoid",
+                "trans": "Qochmoq, saqlanmoq",
+                "ex": "Avoid eating sugar."
+            },
+            {
+                "word": "Concern",
+                "trans": "Tashvish, qayg'u",
+                "ex": "Health is my main concern."
+            },
+            {
+                "word": "Expect",
+                "trans": "Kutmoq, umid qilmoq",
+                "ex": "I expect good news today."
+            },
+            {
+                "word": "Issue",
+                "trans": "Muammo, masala",
+                "ex": "We discussed the main issue."
+            },
+            {
+                "word": "Represent",
+                "trans": "Vakillik qilmoq",
+                "ex": "He represents our country."
+            },
+            {
+                "word": "Village",
+                "trans": "Qishloq",
+                "ex": "My grandparents live in a village."
+            },
+            {
+                "word": "Aware",
+                "trans": "Xabardor",
+                "ex": "Be aware of the rules."
+            }
+        ],
+        "completed_units": [
+            "Aralash",
+            3,
+            4
+        ]
+    },
+    "8745276733": {
+        "name": "Rasulova",
+        "username": "diareee",
         "score": 200,
-        "hard_words": []
+        "hard_words": [
+            {
+                "word": "Attack",
+                "trans": "Hujum qilmoq",
+                "ex": "The dog attacked the mailman."
+            }
+        ]
     }
 }
