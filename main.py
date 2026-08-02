@@ -776,7 +776,7 @@ async def check_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await ask_question(update, context)
 
 def main():
-    TOKEN = "8949503703:AAENtkeltrgdyq3a-NC2qsg12TxMPZrqVB4"  # Bot tokeningizni yozing
+    TOKEN = os.getenv("8949503703:AAENtkeltrgdyq3a-NC2qsg12TxMPZrqVB4") # Bot tokeningizni yozing
 
     app = ApplicationBuilder().token(TOKEN).post_init(setup_bot_commands).build()
 
