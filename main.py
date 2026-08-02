@@ -63,6 +63,14 @@ def save_user_data(user, score=None, add_hard_word=None):
     with open(USERS_FILE, "w", encoding="utf-8") as f:
         json.dump(users, f, ensure_ascii=False, indent=4)
 
+def remove_hard_word(user_id, word_text):
+    users = load_users()
+    u_id = str(user_id)
+    if u_id in users and "hard_words" in users[u_id]:
+        users[u_id]["hard_words"] = [w for w in users[u_id]["hard_words"] if w['word'] != word_text]
+        with open(USERS_FILE, "w", encoding="utf-8") as f:
+            json.dump(users, f, ensure_ascii=False, indent=4)
+
 CHOOSE_UNIT, QUIZ = range(2)
 
 logging.basicConfig(
@@ -70,12 +78,14 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-def get_main_keyboard():
+def get_main_keyboard(user_id=None):
     keyboard = [
-        [KeyboardButton("📚 Mashq boshlash"), KeyboardButton("⚔️ Do'st bilan Duel")],
-        [KeyboardButton("🏆 Reyting"), KeyboardButton("📊 Natijalarim")],
+        [KeyboardButton("📚 Mashq boshlash"), KeyboardButton("🎲 Tasodifiy so'z")],
+        [KeyboardButton("⚔️ Do'st bilan Duel"), KeyboardButton("📊 Natijalarim")],
         [KeyboardButton("🔥 Qiyin so'zlarim"), KeyboardButton("🔄 Takrorlash")]
     ]
+    if user_id == ADMIN_ID:
+        keyboard.insert(2, [KeyboardButton("🏆 Reyting")])
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
 def get_unit_keyboard():
@@ -88,7 +98,9 @@ def get_unit_keyboard():
             row = []
     if row:
         keyboard.append(row)
-    keyboard.append([KeyboardButton("🔙 Asosiy menyu")])
+    
+    keyboard.append([KeyboardButton("🎧 Ovozli Test"), KeyboardButton("🔄 5 ta Unit (100 ta so'z)")])
+    keyboard.append([KeyboardButton("🔄 10 ta Unit (200 ta so'z)"), KeyboardButton("🔙 Asosiy menyu")])
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
 def get_user_data(context: ContextTypes.DEFAULT_TYPE):
@@ -105,10 +117,10 @@ async def setup_bot_commands(app):
     commands = [
         BotCommand("start", "🚀 Botni qayta ishga tushirish"),
         BotCommand("practice", "📚 So'z yodlash"),
+        BotCommand("random", "🎲 Tasodifiy so'zlar testi"),
         BotCommand("review", "🔄 Xato so'zlarni takrorlash"),
         BotCommand("qiyin", "🔥 Qiyin so'zlarim"),
         BotCommand("battle", "⚔️ Do'st bilan duel"),
-        BotCommand("leaderboard", "🏆 Reyting"),
         BotCommand("mystats", "📊 Mening natijalarim"),
         BotCommand("help", "❓ Yordam")
     ]
@@ -119,7 +131,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     save_user_data(user)
     get_user_data(context)
 
-    # Agar do'st bilan duel havolasi orqali kirgan bo'lsa
     if context.args and context.args[0].startswith("duel_"):
         duel_id = context.args[0].replace("duel_", "")
         if duel_id in ACTIVE_DUELS:
@@ -155,14 +166,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"━━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"/practice — 📚 so'z yodlash\n"
         f"/battle — ⚔️ do'st bilan duel\n"
-        f"/mystats — 📊 mening natijalarim\n"
-        f"/leaderboard — 🏆 reyting"
+        f"/mystats — 📊 mening natijalarim"
     )
 
     await update.message.reply_text(
         text,
         parse_mode="HTML",
-        reply_markup=get_main_keyboard()
+        reply_markup=get_main_keyboard(user.id)
     )
     return CHOOSE_UNIT
 
@@ -202,27 +212,6 @@ async def mystats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"🔥 Qiyin so'zlar: <b>{hard_words_count} ta</b>",
         parse_mode="HTML"
     )
-
-async def generic_command_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    cmd = update.message.text.split()[0]
-    user = update.effective_user
-    
-    if cmd in ["/review", "/qiyin", "🔥 Qiyin so'zlarim", "🔄 Takrorlash"]:
-        users = load_users()
-        u_id = str(user.id)
-        hard_words = users.get(u_id, {}).get("hard_words", [])
-        
-        if not hard_words:
-            await update.message.reply_text("🎉 <b>Ajoyib!</b> Sizda hozircha qiyin so'zlar mavjud emas.", parse_mode="HTML")
-            return
-            
-        msg = "🔥 <b>Sizning qiyin so'zlaringiz:</b>\n\n"
-        for idx, item in enumerate(hard_words, 1):
-            msg += f"{idx}. <b>« {html.escape(str(item['word']))} »</b> — {html.escape(str(item['trans']))}\n"
-            
-        await update.message.reply_text(msg, parse_mode="HTML")
-    elif cmd == "/help":
-        await update.message.reply_text("❓ Botdan foydalanish uchun tugmalardan foydalaning.", parse_mode="HTML")
 
 # --- DO'ST BILAN BATTLE (DUEL) MANTIQI ---
 
@@ -374,8 +363,8 @@ async def finish_friend_battle(context: ContextTypes.DEFAULT_TYPE, duel_id: str)
     text_p1 = f"🏁 <b>Duel Yakunlandi!</b>\n\n👤 Sizning ballingiz: <b>{p1_score}</b>\n👥 Raqib ({p2_name}) balli: <b>{p2_score}</b>\n\n{p1_res}"
     text_p2 = f"🏁 <b>Duel Yakunlandi!</b>\n\n👤 Sizning ballingiz: <b>{p2_score}</b>\n👥 Raqib ({p1_name}) balli: <b>{p1_score}</b>\n\n{p2_res}"
 
-    await context.bot.send_message(chat_id=p1_id, text=text_p1, parse_mode="HTML", reply_markup=get_main_keyboard())
-    await context.bot.send_message(chat_id=p2_id, text=text_p2, parse_mode="HTML", reply_markup=get_main_keyboard())
+    await context.bot.send_message(chat_id=p1_id, text=text_p1, parse_mode="HTML", reply_markup=get_main_keyboard(p1_id))
+    await context.bot.send_message(chat_id=p2_id, text=text_p2, parse_mode="HTML", reply_markup=get_main_keyboard(p2_id))
 
     del ACTIVE_DUELS[duel_id]
 
@@ -389,12 +378,12 @@ async def ask_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
         percentage = round((correct_count / total * 100)) if total > 0 else 0
 
         retry_keyboard = [
-            [KeyboardButton(f"Unit {unit_num}")],
+            [KeyboardButton(f"Unit {unit_num}")] if isinstance(unit_num, int) else [KeyboardButton("🔥 Qiyin so'zlarim")],
             [KeyboardButton("🔙 Asosiy menyu")]
         ]
 
         await update.message.reply_text(
-            f"🎉 <b>Unit {unit_num} testi yakunlandi!</b>\n\n"
+            f"🎉 <b>Test yakunlandi!</b>\n\n"
             f"✅ To'g'ri javoblar: <b>{correct_count} / {total}</b>\n"
             f"📈 Aniqlik: <b>{percentage}%</b>",
             parse_mode="HTML",
@@ -402,8 +391,7 @@ async def ask_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return CHOOSE_UNIT
 
-    correct_item = random.choice(remaining_words)
-    remaining_words.remove(correct_item)
+    correct_item = remaining_words.pop(0)
     context.user_data['remaining_words'] = remaining_words
     context.user_data['current_item'] = correct_item
 
@@ -432,10 +420,74 @@ async def ask_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return QUIZ
 
+async def ask_audio_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    remaining_words = context.user_data.get('remaining_words', [])
+
+    if not remaining_words:
+        total = context.user_data.get('total_questions', 0)
+        correct_count = context.user_data.get('correct_answers', 0)
+        percentage = round((correct_count / total * 100)) if total > 0 else 0
+
+        await update.message.reply_text(
+            f"🎉 <b>Ovozli test yakunlandi!</b>\n\n"
+            f"✅ To'g'ri javoblar: <b>{correct_count} / {total}</b>\n"
+            f"📈 Aniqlik: <b>{percentage}%</b>",
+            parse_mode="HTML",
+            reply_markup=get_unit_keyboard()
+        )
+        return CHOOSE_UNIT
+
+    correct_item = remaining_words.pop(0)
+    context.user_data['remaining_words'] = remaining_words
+    context.user_data['current_item'] = correct_item
+    context.user_data['is_audio_mode'] = True
+
+    correct_answer = correct_item['word']
+    trans_text = html.escape(str(correct_item['trans']))
+
+    try:
+        tts = gTTS(text=correct_answer, lang='en')
+        voice_file = io.BytesIO()
+        tts.write_to_fp(voice_file)
+        voice_file.seek(0)
+        # Ovoz ostida tarjimasi ham chiqadigan qilindi
+        await update.message.reply_voice(
+            voice=voice_file, 
+            caption=f"📝 Tarjimasi: <b>{trans_text}</b>", 
+            parse_mode="HTML"
+        )
+    except Exception:
+        await update.message.reply_text("⚠️ Ovozli xabar yaratishda xatolik yuz berdi.")
+
+    all_words = [w['word'] for unit in UNITS.values() for w in unit if 'word' in w]
+    wrong_options = list(set([w for w in all_words if w != correct_answer]))
+    
+    if len(wrong_options) >= 3:
+        options = random.sample(wrong_options, 3) + [correct_answer]
+    else:
+        options = [correct_answer, "Option B", "Option C", "Option D"]
+
+    random.shuffle(options)
+
+    quiz_keyboard = [
+        [KeyboardButton(options[0]), KeyboardButton(options[1])],
+        [KeyboardButton(options[2]), KeyboardButton(options[3])],
+        [KeyboardButton("🗣 Qayta eshitish"), KeyboardButton("💡 Maslahat (Hint)")],
+        [KeyboardButton("🛑 Testni to'xtatish")]
+    ]
+
+    await update.message.reply_text(
+        "🔊 <b>Yuqoridagi ovozda qaysi so'z aytildi?</b> Variantlardan tanlang:",
+        parse_mode="HTML",
+        reply_markup=ReplyKeyboardMarkup(quiz_keyboard, resize_keyboard=True)
+    )
+    return QUIZ
+
 async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
+    user = update.effective_user
     get_user_data(context)
-    save_user_data(update.effective_user)
+    save_user_data(user)
 
     if text in ["📚 Mashq boshlash", "/practice"]:
         await update.message.reply_text("Qaysi Unit bo'yicha mashq qilamiz? Tanlang:", reply_markup=get_unit_keyboard())
@@ -445,7 +497,7 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await mystats(update, context)
         return CHOOSE_UNIT
 
-    elif text in ["🏆 Reyting", "/leaderboard"]:
+    elif text in ["🏆 Reyting", "/leaderboard"] and user.id == ADMIN_ID:
         users = load_users()
         msg = "🏆 <b>Top foydalanuvchilar reytingi:</b>\n\n"
         if users:
@@ -461,8 +513,84 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await start_friend_battle(update, context)
 
     elif text in ["🔥 Qiyin so'zlarim", "/qiyin", "🔄 Takrorlash", "/review"]:
-        await generic_command_handler(update, context)
-        return CHOOSE_UNIT
+        users = load_users()
+        u_id = str(user.id)
+        hard_words = users.get(u_id, {}).get("hard_words", [])
+        
+        if not hard_words:
+            await update.message.reply_text("🎉 <b>Ajoyib!</b> Sizda hozircha qiyin so'zlar mavjud emas.", parse_mode="HTML", reply_markup=get_main_keyboard(user.id))
+            return CHOOSE_UNIT
+            
+        context.user_data['remaining_words'] = list(hard_words)
+        context.user_data['unit'] = "Qiyin so'zlar"
+        context.user_data['total_questions'] = len(hard_words)
+        context.user_data['correct_answers'] = 0
+        context.user_data['has_practiced'] = True
+        context.user_data['is_audio_mode'] = False
+
+        await update.message.reply_text(f"🔥 <b>Qiyin so'zlar testi boshlandi!</b>\nTo'g'ri topilgan so'zlar ro'yxatdan o'chib ketadi. Jami: <b>{len(hard_words)} ta</b>", parse_mode="HTML")
+        return await ask_question(update, context)
+
+    elif text == "🎧 Ovozli Test":
+        all_words = [w for unit in UNITS.values() for w in unit if 'word' in w]
+        if not all_words:
+            await update.message.reply_text("⚠️ Bazada so'zlar topilmadi.")
+            return CHOOSE_UNIT
+        
+        selected_words = random.sample(all_words, min(20, len(all_words)))
+        context.user_data['remaining_words'] = selected_words
+        context.user_data['unit'] = "Ovozli Test"
+        context.user_data['total_questions'] = len(selected_words)
+        context.user_data['correct_answers'] = 0
+        context.user_data['has_practiced'] = True
+
+        await update.message.reply_text("🎧 <b>Ovozli test boshlandi!</b> Bot ovoz yuboradi va tagida tarjimasi ko'rsatiladi.", parse_mode="HTML")
+        return await ask_audio_question(update, context)
+
+    elif text == "🔄 5 ta Unit (100 ta so'z)":
+        all_words = [w for unit in UNITS.values() for w in unit if 'word' in w]
+        selected_words = random.sample(all_words, min(100, len(all_words)))
+        
+        context.user_data['remaining_words'] = selected_words
+        context.user_data['unit'] = "5 ta Unit Takrorlash"
+        context.user_data['total_questions'] = len(selected_words)
+        context.user_data['correct_answers'] = 0
+        context.user_data['has_practiced'] = True
+        context.user_data['is_audio_mode'] = False
+
+        await update.message.reply_text(f"🔄 <b>5 ta unitdan aralash takrorlash</b> boshlandi!\nJami savollar: <b>{len(selected_words)} ta</b>", parse_mode="HTML")
+        return await ask_question(update, context)
+
+    elif text == "🔄 10 ta Unit (200 ta so'z)":
+        all_words = [w for unit in UNITS.values() for w in unit if 'word' in w]
+        selected_words = random.sample(all_words, min(200, len(all_words)))
+        
+        context.user_data['remaining_words'] = selected_words
+        context.user_data['unit'] = "10 ta Unit Takrorlash"
+        context.user_data['total_questions'] = len(selected_words)
+        context.user_data['correct_answers'] = 0
+        context.user_data['has_practiced'] = True
+        context.user_data['is_audio_mode'] = False
+
+        await update.message.reply_text(f"🔄 <b>10 ta unitdan aralash takrorlash</b> boshlandi!\nJami savollar: <b>{len(selected_words)} ta</b>", parse_mode="HTML")
+        return await ask_question(update, context)
+
+    elif text == "🎲 Tasodifiy so'z":
+        all_words = [w for unit in UNITS.values() for w in unit if 'word' in w]
+        if not all_words:
+            await update.message.reply_text("⚠️ Bazada so'zlar topilmadi.")
+            return CHOOSE_UNIT
+        
+        selected_words = random.sample(all_words, min(15, len(all_words)))
+        context.user_data['remaining_words'] = selected_words
+        context.user_data['unit'] = "Aralash"
+        context.user_data['total_questions'] = len(selected_words)
+        context.user_data['correct_answers'] = 0
+        context.user_data['has_practiced'] = True
+        context.user_data['is_audio_mode'] = False
+
+        await update.message.reply_text(f"🎲 <b>Tasodifiy so'zlar testi</b> boshlandi!\nJami savollar: <b>{len(selected_words)} ta</b>", parse_mode="HTML")
+        return await ask_question(update, context)
 
     elif text == "🔙 Asosiy menyu":
         return await start(update, context)
@@ -481,6 +609,7 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.user_data['total_questions'] = len(words)
             context.user_data['correct_answers'] = 0
             context.user_data['has_practiced'] = True
+            context.user_data['is_audio_mode'] = False
 
             await update.message.reply_text(f"📖 <b>Unit {unit_num}</b> testi boshlandi! Jami so'zlar: <b>{len(words)} ta</b>", parse_mode="HTML")
             return await ask_question(update, context)
@@ -497,16 +626,17 @@ async def check_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     get_user_data(context)
 
     if user_answer == "🛑 Testni to'xtatish":
-        await update.message.reply_text("Test to'xtatildi.", reply_markup=get_main_keyboard())
+        await update.message.reply_text("Test to'xtatildi.", reply_markup=get_main_keyboard(update.effective_user.id))
         return CHOOSE_UNIT
 
-    if user_answer == "🗣 Talaffuz qilish":
+    if user_answer in ["🗣 Talaffuz qilish", "🗣 Qayta eshitish"]:
         try:
             tts = gTTS(text=correct_answer, lang='en')
             voice_file = io.BytesIO()
             tts.write_to_fp(voice_file)
             voice_file.seek(0)
-            await update.message.reply_voice(voice=voice_file, caption=f"🔊 Talaffuzi: <b>{correct_answer}</b>", parse_mode="HTML")
+            trans_text = html.escape(str(current_item.get('trans', '')))
+            await update.message.reply_voice(voice=voice_file, caption=f"🔊 Talaffuzi: <b>{correct_answer}</b>\n📝 Tarjimasi: <b>{trans_text}</b>", parse_mode="HTML")
         except Exception:
             await update.message.reply_text("⚠️ Talaffuzni yuklashda xatolik yuz berdi.")
         return QUIZ
@@ -523,15 +653,22 @@ async def check_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['total_correct'] += 1
         context.user_data['score'] += 10
         save_user_data(update.effective_user, score=context.user_data['score'])
+        
+        if context.user_data.get('unit') == "Qiyin so'zlar":
+            remove_hard_word(update.effective_user.id, correct_answer)
+
         await update.message.reply_text("✅ <b>To'g'ri!</b> (+10 achko 💰)", parse_mode="HTML")
     else:
         save_user_data(update.effective_user, score=context.user_data['score'], add_hard_word=current_item)
         await update.message.reply_text(f"❌ <b>Noto'g'ri!</b> To'g'ri javob: <b>{html.escape(str(correct_answer))}</b>", parse_mode="HTML")
 
-    return await ask_question(update, context)
+    if context.user_data.get('is_audio_mode', False):
+        return await ask_audio_question(update, context)
+    else:
+        return await ask_question(update, context)
 
 def main():
-    TOKEN = "token"  # Bot tokeningizni yozing
+    TOKEN = "8949503703:AAENtkeltrgdyq3a-NC2qsg12TxMPZrqVB4"  # Bot tokeningizni yozing
 
     app = ApplicationBuilder().token(TOKEN).post_init(setup_bot_commands).build()
 
@@ -540,21 +677,20 @@ def main():
             CommandHandler("start", start),
             CommandHandler("admin", admin_stats),
             CommandHandler("practice", handle_menu),
+            CommandHandler("random", handle_menu),
             CommandHandler("mystats", handle_menu),
-            CommandHandler("leaderboard", handle_menu),
             CommandHandler("battle", handle_menu),
-            CommandHandler("review", generic_command_handler),
-            CommandHandler("qiyin", generic_command_handler),
-            CommandHandler("help", generic_command_handler),
+            CommandHandler("review", handle_menu),
+            CommandHandler("qiyin", handle_menu),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu)
         ],
         states={
             CHOOSE_UNIT: [
                 CommandHandler("start", start),
                 CommandHandler("admin", admin_stats),
-                CommandHandler("review", generic_command_handler),
-                CommandHandler("qiyin", generic_command_handler),
-                CommandHandler("help", generic_command_handler),
+                CommandHandler("random", handle_menu),
+                CommandHandler("review", handle_menu),
+                CommandHandler("qiyin", handle_menu),
                 CallbackQueryHandler(handle_friend_battle_callback, pattern="^fbtl_"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu)
             ],
