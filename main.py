@@ -778,11 +778,11 @@ async def check_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     TOKENN = os.getenv("8949503703:AAENtkeltrgdyq3a-NC2qsg12TxMPZrqVB4") # Bot tokeningizni yozing
 
-    if not TOKEN:
+    if not TOKENN:
         print("Xatolik: TOKEN topilmadi!")
         return
     
-    app = ApplicationBuilder().token(TOKEN).post_init(setup_bot_commands).build()
+    app = ApplicationBuilder().token(TOKENN).post_init(setup_bot_commands).build()
 
     conv_handler = ConversationHandler(
         entry_points=[
