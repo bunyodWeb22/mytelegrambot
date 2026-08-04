@@ -20,7 +20,7 @@ from telegram.ext import (
 from words import UNITS
 
 # --- ADMIN SOZLAMASI ---
-ADMIN_ID = 6466373319
+ADMIN_ID = 8928546200
 
 # Foydalanuvchilarni saqlash uchun fayl
 USERS_FILE = "users.json"
