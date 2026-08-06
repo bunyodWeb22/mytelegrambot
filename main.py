@@ -549,27 +549,29 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return CHOOSE_UNIT
 
     elif text == "📖 Essential 1":
-        await update.message.reply_text("<b>Essential 1</b> bo'limi:\nUnitni yoki takrorlashni tanlang:", parse_mode="HTML", reply_markup=get_essential_units_keyboard(1, 28))
+        # Essential 1 ni 30 ta unitga o'zgartirdik (1 dan 30 gacha)
+        await update.message.reply_text("<b>Essential 1 (1-30 unitlar)</b> bo'limi:\nUnitni yoki takrorlashni tanlang:", parse_mode="HTML", reply_markup=get_essential_units_keyboard(1, 30))
         return CHOOSE_UNIT
 
     elif text == "📖 Essential 2":
-        await update.message.reply_text("<b>Essential 2</b> bo'limi:\nUnitni yoki takrorlashni tanlang:", parse_mode="HTML", reply_markup=get_essential_units_keyboard(29, 56))
+        # Keyingi kitoblar diapazonini ham shunga mos ravishda siljitamiz (31 dan 58 gacha va hokazo)
+        await update.message.reply_text("<b>Essential 2</b> bo'limi:\nUnitni yoki takrorlashni tanlang:", parse_mode="HTML", reply_markup=get_essential_units_keyboard(31, 58))
         return CHOOSE_UNIT
 
     elif text == "📖 Essential 3":
-        await update.message.reply_text("<b>Essential 3</b> bo'limi:\nUnitni yoki takrorlashni tanlang:", parse_mode="HTML", reply_markup=get_essential_units_keyboard(57, 84))
+        await update.message.reply_text("<b>Essential 3</b> bo'limi:\nUnitni yoki takrorlashni tanlang:", parse_mode="HTML", reply_markup=get_essential_units_keyboard(59, 86))
         return CHOOSE_UNIT
 
     elif text == "📖 Essential 4":
-        await update.message.reply_text("<b>Essential 4</b> bo'limi:\nUnitni yoki takrorlashni tanlang:", parse_mode="HTML", reply_markup=get_essential_units_keyboard(85, 112))
+        await update.message.reply_text("<b>Essential 4</b> bo'limi:\nUnitni yoki takrorlashni tanlang:", parse_mode="HTML", reply_markup=get_essential_units_keyboard(87, 114))
         return CHOOSE_UNIT
 
     elif text == "📖 Essential 5":
-        await update.message.reply_text("<b>Essential 5</b> bo'limi:\nUnitni yoki takrorlashni tanlang:", parse_mode="HTML", reply_markup=get_essential_units_keyboard(113, 140))
+        await update.message.reply_text("<b>Essential 5</b> bo'limi:\nUnitni yoki takrorlashni tanlang:", parse_mode="HTML", reply_markup=get_essential_units_keyboard(115, 142))
         return CHOOSE_UNIT
 
     elif text == "📖 Essential 6":
-        await update.message.reply_text("<b>Essential 6</b> bo'limi:\nUnitni yoki takrorlashni tanlang:", parse_mode="HTML", reply_markup=get_essential_units_keyboard(141, 168))
+        await update.message.reply_text("<b>Essential 6</b> bo'limi:\nUnitni yoki takrorlashni tanlang:", parse_mode="HTML", reply_markup=get_essential_units_keyboard(143, 170))
         return CHOOSE_UNIT
 
     elif text == "🔙 Orqaga (Kitoblar)":
@@ -789,24 +791,16 @@ def main():
             CommandHandler("start", start),
             CommandHandler("admin", admin_stats),
             CommandHandler("practice", handle_menu),
-            CommandHandler("mystats", handle_menu),
-            CommandHandler("battle", handle_menu),
             CommandHandler("review", handle_menu),
             CommandHandler("qiyin", handle_menu),
-            MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu)
+            CommandHandler("battle", start_friend_battle),
+            CommandHandler("mystats", mystats)
         ],
         states={
             CHOOSE_UNIT: [
-                CommandHandler("start", start),
-                CommandHandler("admin", admin_stats),
-                CommandHandler("review", handle_menu),
-                CommandHandler("qiyin", handle_menu),
-                CallbackQueryHandler(handle_friend_battle_callback, pattern="^fbtl_"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu)
             ],
             QUIZ: [
-                CommandHandler("start", start),
-                CommandHandler("admin", admin_stats),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, check_answer)
             ]
         },
@@ -814,9 +808,10 @@ def main():
     )
 
     app.add_handler(conv_handler)
+    app.add_handler(CallbackQueryHandler(handle_friend_battle_callback, pattern="^fbtl_"))
 
-    print("Bot muvaffaqiyatli ishga tushdi!")
+    print("Bot ishga tushdi...")
     app.run_polling()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
