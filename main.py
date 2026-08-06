@@ -118,11 +118,11 @@ def get_essentials_keyboard():
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
-# Har bir Essential uchun unitlar va takrorlash tugmalarini hosil qiluvchi yordamchi funksiya
-def get_essential_units_keyboard(start_unit, end_unit):
+# Har bir Essential uchun 1 dan 30 gacha unit tugmalarini hosil qiluvchi yordamchi funksiya
+def get_essential_units_keyboard(book_num):
     keyboard = []
     row = []
-    for i in range(start_unit, end_unit + 1):
+    for i in range(1, 31):
         row.append(KeyboardButton(f"Unit {i}"))
         if len(row) == 4:
             keyboard.append(row)
@@ -130,7 +130,7 @@ def get_essential_units_keyboard(start_unit, end_unit):
     if row:
         keyboard.append(row)
     
-    keyboard.append([KeyboardButton(f"🔄 Barcha unitlarni takrorlash ({start_unit}-{end_unit})")])
+    keyboard.append([KeyboardButton(f"🔄 Barcha unitlarni takrorlash (1-30)")])
     keyboard.append([KeyboardButton("🔄 5 ta Unit (100 ta so'z)"), KeyboardButton("🔄 10 ta Unit (200 ta so'z)")])
     keyboard.append([KeyboardButton("🔙 Orqaga (Kitoblar)"), KeyboardButton("🔙 Asosiy menyu")])
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -214,22 +214,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=get_main_keyboard(user.id)
     )
     return CHOOSE_UNIT
-
-async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if user_id != ADMIN_ID:
-        await update.message.reply_text("⛔ Bu buyruq faqat admin uchun!")
-        return
-
-    users = load_users()
-    total_users = len(users)
-
-    msg = f"📊 <b>Bot statistikasi:</b>\n\n👥 Jami foydalanuvchilar: <b>{total_users} ta</b>\n\n"
-    for u_id, u_info in users.items():
-        name = html.escape(u_info.get('name', 'User'))
-        msg += f"• {name} | ID: <code>{u_id}</code> | Achko: {u_info.get('score', 0)}\n"
-
-    await update.message.reply_text(msg, parse_mode="HTML")
 
 async def mystats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     get_user_data(context, update.effective_user.id)
@@ -549,29 +533,33 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return CHOOSE_UNIT
 
     elif text == "📖 Essential 1":
-        # Essential 1 ni 30 ta unitga o'zgartirdik (1 dan 30 gacha)
-        await update.message.reply_text("<b>Essential 1 (1-30 unitlar)</b> bo'limi:\nUnitni yoki takrorlashni tanlang:", parse_mode="HTML", reply_markup=get_essential_units_keyboard(1, 30))
+        context.user_data['current_book'] = 1
+        await update.message.reply_text("<b>Essential 1 (1-30 unitlar)</b> bo'limi:\nUnitni yoki takrorlashni tanlang:", parse_mode="HTML", reply_markup=get_essential_units_keyboard(1))
         return CHOOSE_UNIT
 
     elif text == "📖 Essential 2":
-        # Keyingi kitoblar diapazonini ham shunga mos ravishda siljitamiz (31 dan 58 gacha va hokazo)
-        await update.message.reply_text("<b>Essential 2</b> bo'limi:\nUnitni yoki takrorlashni tanlang:", parse_mode="HTML", reply_markup=get_essential_units_keyboard(31, 58))
+        context.user_data['current_book'] = 2
+        await update.message.reply_text("<b>Essential 2 (1-30 unitlar)</b> bo'limi:\nUnitni yoki takrorlashni tanlang:", parse_mode="HTML", reply_markup=get_essential_units_keyboard(2))
         return CHOOSE_UNIT
 
     elif text == "📖 Essential 3":
-        await update.message.reply_text("<b>Essential 3</b> bo'limi:\nUnitni yoki takrorlashni tanlang:", parse_mode="HTML", reply_markup=get_essential_units_keyboard(59, 86))
+        context.user_data['current_book'] = 3
+        await update.message.reply_text("<b>Essential 3 (1-30 unitlar)</b> bo'limi:\nUnitni yoki takrorlashni tanlang:", parse_mode="HTML", reply_markup=get_essential_units_keyboard(3))
         return CHOOSE_UNIT
 
     elif text == "📖 Essential 4":
-        await update.message.reply_text("<b>Essential 4</b> bo'limi:\nUnitni yoki takrorlashni tanlang:", parse_mode="HTML", reply_markup=get_essential_units_keyboard(87, 114))
+        context.user_data['current_book'] = 4
+        await update.message.reply_text("<b>Essential 4 (1-30 unitlar)</b> bo'limi:\nUnitni yoki takrorlashni tanlang:", parse_mode="HTML", reply_markup=get_essential_units_keyboard(4))
         return CHOOSE_UNIT
 
     elif text == "📖 Essential 5":
-        await update.message.reply_text("<b>Essential 5</b> bo'limi:\nUnitni yoki takrorlashni tanlang:", parse_mode="HTML", reply_markup=get_essential_units_keyboard(115, 142))
+        context.user_data['current_book'] = 5
+        await update.message.reply_text("<b>Essential 5 (1-30 unitlar)</b> bo'limi:\nUnitni yoki takrorlashni tanlang:", parse_mode="HTML", reply_markup=get_essential_units_keyboard(5))
         return CHOOSE_UNIT
 
     elif text == "📖 Essential 6":
-        await update.message.reply_text("<b>Essential 6</b> bo'limi:\nUnitni yoki takrorlashni tanlang:", parse_mode="HTML", reply_markup=get_essential_units_keyboard(143, 170))
+        context.user_data['current_book'] = 6
+        await update.message.reply_text("<b>Essential 6 (1-30 unitlar)</b> bo'limi:\nUnitni yoki takrorlashni tanlang:", parse_mode="HTML", reply_markup=get_essential_units_keyboard(6))
         return CHOOSE_UNIT
 
     elif text == "🔙 Orqaga (Kitoblar)":
@@ -634,9 +622,9 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif text.startswith("🔄 Barcha unitlarni takrorlash"):
         try:
-            parts = text.replace("🔄 Barcha unitlarni takrorlash (", "").replace(")", "").split("-")
-            start_u = int(parts[0])
-            end_u = int(parts[1])
+            current_book = context.user_data.get('current_book', 1)
+            start_u = (current_book - 1) * 30 + 1
+            end_u = current_book * 30
             
             selected_words = []
             for u in range(start_u, end_u + 1):
@@ -648,47 +636,61 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             random.shuffle(selected_words)
             
             if not selected_words:
-                await update.message.reply_text("⚠️ Bu oraliqdagi unitlar uchun so'zlar topilmadi.")
+                await update.message.reply_text("⚠️ Bu kitob unitlari uchun so'zlar topilmadi.")
                 return CHOOSE_UNIT
 
             context.user_data['remaining_words'] = selected_words
-            context.user_data['unit'] = f"Barcha unitlar ({start_u}-{end_u})"
+            context.user_data['unit'] = f"Essential {current_book} (Barchasi)"
             context.user_data['total_questions'] = len(selected_words)
             context.user_data['correct_answers'] = 0
             context.user_data['has_practiced'] = True
             context.user_data['is_audio_mode'] = False
 
-            await update.message.reply_text(f"🔄 <b>Barcha unitlardan takrorlash</b> boshlandi!\nHar bir unitdan 20 tadan so'z olindi. Jami savollar: <b>{len(selected_words)} ta</b>", parse_mode="HTML")
+            await update.message.reply_text(f"🔄 <b>Essential {current_book} barcha unitlaridan takrorlash</b> boshlandi!\nJami savollar: <b>{len(selected_words)} ta</b>", parse_mode="HTML")
             return await ask_question(update, context)
         except Exception:
             pass
 
     elif text == "🔄 5 ta Unit (100 ta so'z)":
-        all_words = [w for unit in UNITS.values() for w in unit if 'word' in w]
-        selected_words = random.sample(all_words, min(100, len(all_words)))
+        current_book = context.user_data.get('current_book', 1)
+        start_u = (current_book - 1) * 30 + 1
+        end_u = current_book * 30
+        
+        book_words = []
+        for u in range(start_u, end_u + 1):
+            book_words.extend(UNITS.get(u, []))
+
+        selected_words = random.sample(book_words, min(100, len(book_words)))
         
         context.user_data['remaining_words'] = selected_words
-        context.user_data['unit'] = "5 ta Unit Takrorlash"
+        context.user_data['unit'] = f"Essential {current_book} (5 ta unit)"
         context.user_data['total_questions'] = len(selected_words)
         context.user_data['correct_answers'] = 0
         context.user_data['has_practiced'] = True
         context.user_data['is_audio_mode'] = False
 
-        await update.message.reply_text(f"🔄 <b>5 ta unitdan aralash takrorlash</b> boshlandi!\nJami savollar: <b>{len(selected_words)} ta</b>", parse_mode="HTML")
+        await update.message.reply_text(f"🔄 <b>Essential {current_book} bo'yicha 5 ta unit (100 ta so'z)</b> takrorlash boshlandi!\nJami savollar: <b>{len(selected_words)} ta</b>", parse_mode="HTML")
         return await ask_question(update, context)
 
     elif text == "🔄 10 ta Unit (200 ta so'z)":
-        all_words = [w for unit in UNITS.values() for w in unit if 'word' in w]
-        selected_words = random.sample(all_words, min(200, len(all_words)))
+        current_book = context.user_data.get('current_book', 1)
+        start_u = (current_book - 1) * 30 + 1
+        end_u = current_book * 30
+        
+        book_words = []
+        for u in range(start_u, end_u + 1):
+            book_words.extend(UNITS.get(u, []))
+
+        selected_words = random.sample(book_words, min(200, len(book_words)))
         
         context.user_data['remaining_words'] = selected_words
-        context.user_data['unit'] = "10 ta Unit Takrorlash"
+        context.user_data['unit'] = f"Essential {current_book} (10 ta unit)"
         context.user_data['total_questions'] = len(selected_words)
         context.user_data['correct_answers'] = 0
         context.user_data['has_practiced'] = True
         context.user_data['is_audio_mode'] = False
 
-        await update.message.reply_text(f"🔄 <b>10 ta unitdan aralash takrorlash</b> boshlandi!\nJami savollar: <b>{len(selected_words)} ta</b>", parse_mode="HTML")
+        await update.message.reply_text(f"🔄 <b>Essential {current_book} bo'yicha 10 ta unit (200 ta so'z)</b> takrorlash boshlandi!\nJami savollar: <b>{len(selected_words)} ta</b>", parse_mode="HTML")
         return await ask_question(update, context)
 
     elif text == "🔙 Asosiy menyu":
@@ -696,21 +698,25 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif text.startswith("Unit "):
         try:
-            unit_num = int(text.split(" ")[1])
-            words = UNITS.get(unit_num, [])
+            display_num = int(text.split(" ")[1])
+            current_book = context.user_data.get('current_book', 1)
+            
+            # Haqiqiy bazadagi unit raqamiga o'tkazish (Masalan: Book 2, Unit 1 -> 31-unit)
+            actual_unit_num = (current_book - 1) * 30 + display_num
+            words = UNITS.get(actual_unit_num, [])
 
             if not words:
-                await update.message.reply_text(f"⚠️ <b>Unit {unit_num}</b> bo'yicha so'zlar hali bazaga qo'shilmagan!", parse_mode="HTML")
+                await update.message.reply_text(f"⚠️ <b>Unit {display_num}</b> bo'yicha so'zlar hali bazaga qo'shilmagan!", parse_mode="HTML")
                 return CHOOSE_UNIT
 
             context.user_data['remaining_words'] = list(words)
-            context.user_data['unit'] = unit_num
+            context.user_data['unit'] = actual_unit_num
             context.user_data['total_questions'] = len(words)
             context.user_data['correct_answers'] = 0
             context.user_data['has_practiced'] = True
             context.user_data['is_audio_mode'] = False
 
-            await update.message.reply_text(f"📖 <b>Unit {unit_num}</b> testi boshlandi! Jami so'zlar: <b>{len(words)} ta</b>", parse_mode="HTML")
+            await update.message.reply_text(f"📖 <b>Essential {current_book} - Unit {display_num}</b> testi boshlandi! Jami so'zlar: <b>{len(words)} ta</b>", parse_mode="HTML")
             return await ask_question(update, context)
         except (IndexError, ValueError):
             pass
@@ -780,29 +786,17 @@ async def check_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     TOKENN = "8984230918:AAF0wDpDrZe3BOyBg9D-ENe34nBtR21Cntw" # Bot tokeningizni yozing
 
-    if not TOKENN:
+    if not TOKENN or TOKENN == "TOKENINGIZNI_SHU_YERGA_YOZING":
         print("Xatolik: TOKEN topilmadi!")
         return
     
     app = ApplicationBuilder().token(TOKENN).post_init(setup_bot_commands).build()
 
     conv_handler = ConversationHandler(
-        entry_points=[
-            CommandHandler("start", start),
-            CommandHandler("admin", admin_stats),
-            CommandHandler("practice", handle_menu),
-            CommandHandler("review", handle_menu),
-            CommandHandler("qiyin", handle_menu),
-            CommandHandler("battle", start_friend_battle),
-            CommandHandler("mystats", mystats)
-        ],
+        entry_points=[CommandHandler("start", start), MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu)],
         states={
-            CHOOSE_UNIT: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu)
-            ],
-            QUIZ: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, check_answer)
-            ]
+            CHOOSE_UNIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu)],
+            QUIZ: [MessageHandler(filters.TEXT & ~filters.COMMAND, check_answer)]
         },
         fallbacks=[CommandHandler("start", start)]
     )
